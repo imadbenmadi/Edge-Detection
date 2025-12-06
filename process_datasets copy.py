@@ -50,36 +50,14 @@ def create_output_dirs():
 
 def resize_image(img, size, is_edge_map=False):
     """
-    Pad image to square (preserving aspect ratio) then resize to target size.
-    This prevents edge distortion from non-uniform scaling.
-    
+    Resize image to the target size.
     For edge maps, use NEAREST to avoid interpolation artifacts.
     For RGB images, use LANCZOS for better quality.
     """
-    w, h = img.size
-    target_w, target_h = size
-    
-    # Step 1: Pad to square (preserving aspect ratio)
-    max_dim = max(w, h)
-    
-    # Create a new square image with padding
     if is_edge_map:
-        # Black padding for edge maps
-        padded = Image.new('L', (max_dim, max_dim), 0)
+        return img.resize(size, Image.NEAREST)
     else:
-        # Gray padding for RGB images (or black, your choice)
-        padded = Image.new('RGB', (max_dim, max_dim), (0, 0, 0))
-    
-    # Center the original image
-    paste_x = (max_dim - w) // 2
-    paste_y = (max_dim - h) // 2
-    padded.paste(img, (paste_x, paste_y))
-    
-    # Step 2: Resize the square image to target size
-    if is_edge_map:
-        return padded.resize(size, Image.NEAREST)
-    else:
-        return padded.resize(size, Image.LANCZOS)
+        return img.resize(size, Image.LANCZOS)
 
 
 def load_mat_file(mat_path):
