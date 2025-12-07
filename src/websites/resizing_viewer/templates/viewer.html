@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Resize Quality Viewer</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>Resize Quality Viewer</h1>
+    <p>Upload images to compare Original vs Resized. Choose mode: RGB or Edge.</p>
+  </header>
+
+  <section class="controls">
+    <form action="/preview" method="post" enctype="multipart/form-data">
+      <div class="row">
+        <label>Mode:</label>
+        <select name="mode">
+          <option value="rgb" {{ 'selected' if mode == 'rgb' else '' }}>RGB</option>
+          <option value="edge" {{ 'selected' if mode == 'edge' else '' }}>Edge (grayscale)</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>Target size:</label>
+        <input type="number" value="{{ target_w if target_w else 512 }}" disabled /> ×
+        <input type="number" value="{{ target_h if target_h else 512 }}" disabled />
+      </div>
+      <div class="row">
+        <label>Select images (multi):</label>
+        <input type="file" name="images" multiple accept="image/*" />
+      </div>
+      <button type="submit">Preview</button>
+    </form>
+  </section>
+
+  {% if items %}
+  <section class="gallery">
+    {% for item in items %}
+      <div class="card">
+        <div class="meta">
+          <strong>{{ item.filename }}</strong>
+          <span class="sizes">Original: {{ item.orig_size }} → Resized: {{ item.new_size }}</span>
+          {% if item.error %}
+            <div class="error">Error: {{ item.error }}</div>
+          {% endif %}
+        </div>
+        <div class="pair">
+          <div class="imgbox">
+            <div class="label">Original</div>
+            <img src="{{ item.original_url }}" alt="original" />
+          </div>
+          <div class="imgbox">
+            <div class="label">Resized</div>
+            <img src="{{ item.resized_url }}" alt="resized" />
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <footer>
+    <p>Powered by Flask + Pillow + OpenCV. Letterbox resize preserves aspect ratio; edges use bilinear (downscale) and nearest (upscale). Output size is fixed.</p>
+  </footer>
+</body>
+</html>
