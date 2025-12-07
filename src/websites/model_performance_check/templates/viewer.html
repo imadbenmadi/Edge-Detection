@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Model Performance Check</title>
+        <link
+            rel="stylesheet"
+            href="{{ url_for('static', filename='style.css') }}"
+        />
+    </head>
+    <body>
+        <header>
+            <h1>Model Performance Check</h1>
+            <p>
+                Run XYW-Net style edge detection on your image with selected
+                model.
+            </p>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %} {% if
+        messages %}
+        <div class="flash-container">
+            {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %} {% endwith %}
+
+        <main>
+            <section class="controls">
+                <form
+                    id="predict-form"
+                    method="post"
+                    action="{{ url_for('predict') }}"
+                    enctype="multipart/form-data"
+                >
+                    <div class="field">
+                        <label for="model_file">Select Model (.pth)</label>
+                        <input
+                            type="file"
+                            id="model_file"
+                            name="model_file"
+                            accept=".pth"
+                        />
+                    </div>
+                    <div class="field">
+                        <label for="model_path">Or provide model path</label>
+                        <input
+                            type="text"
+                            id="model_path"
+                            name="model_path"
+                            placeholder="C:\\path\\to\\model.pth"
+                            value="{{ selected_model or '' }}"
+                        />
+                    </div>
+
+                    <div class="field">
+                        <label for="image_file">Select RGB Image</label>
+                        <input
+                            type="file"
+                            id="image_file"
+                            name="image_file"
+                            accept="image/png, image/jpeg"
+                            required
+                        />
+                    </div>
+
+                    <div class="field">
+                        <label for="show_debug">Show internals</label>
+                        <div class="toggle-wrap">
+                            <input
+                                type="checkbox"
+                                id="show_debug"
+                                name="show_debug"
+                                class="toggle"
+                                {%
+                                if
+                                show_debug
+                                %}checked{%
+                                endif
+                                %}
+                            />
+                            <span class="hint">Stages + X/Y/W maps</span>
+                        </div>
+                    </div>
+
+                    <div class="actions">
+                        <button type="submit" class="primary">
+                            Run Forward
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="preview">
+                <div class="panel">
+                    <h2>Input RGB</h2>
+                    {% if input_image %}
+                    <img src="{{ input_image }}" alt="Input" />
+                    {% else %}
+                    <div class="placeholder">No image yet</div>
+                    {% endif %}
+                </div>
+                <div class="panel">
+                    <h2>Predicted Edges</h2>
+                    {% if edge_image %}
+                    <img src="{{ edge_image }}" alt="Edges" />
+                    {% else %}
+                    <div class="placeholder">No prediction yet</div>
+                    {% endif %}
+                </div>
+            </section>
+
+            {% if show_debug and debug_urls %}
+            <section class="preview">
+                <div class="panel" style="grid-column: span 2">
+                    <h2>Internals: Stages and X/Y/W</h2>
+                    <div class="grid">
+                        {% for name, url in debug_urls.items() %}
+                        <div class="tile">
+                            <div class="tile-img">
+                                <img src="{{ url }}" alt="{{ name }}" />
+                            </div>
+                            <div class="tile-label">{{ name }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+        </main>
+
+        <footer>
+            <span>UI matches the resizing viewer style</span>
+        </footer>
+    </body>
+</html>
