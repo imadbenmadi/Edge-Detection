@@ -5,10 +5,24 @@ import base64
 from flask import Flask, render_template, request
 from PIL import Image
 import numpy as np
+import sys
 
-from Resize_image import resize_image_v2 as resize_image
+# Make project paths importable after structure change
+PROJECT_ROOT = Path(r"e:\Edge Detection")
+SRC_DIR = PROJECT_ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
-app = Flask(__name__)
+try:
+    from Resize_image import resize_image_v2 as resize_image
+except Exception:
+    # Fallback: attempt relative import if running from repository root
+    from src.Resize_image import resize_image_v2 as resize_image
+
+APP_DIR = Path(__file__).parent
+TEMPLATES_DIR = APP_DIR / "templates"
+STATIC_DIR = APP_DIR / "static"
+app = Flask(__name__, template_folder=str(TEMPLATES_DIR), static_folder=str(STATIC_DIR))
 
 TARGET_SIZE = (512, 512)  # Fixed output size
 

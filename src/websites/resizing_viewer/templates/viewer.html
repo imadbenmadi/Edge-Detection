@@ -7,61 +7,88 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <header>
-    <h1>Resize Quality Viewer</h1>
-    <p>Upload images to compare Original vs Resized. Choose mode: RGB or Edge.</p>
-  </header>
+  <nav class="topbar">
+    <div class="brand">Resize Quality Viewer</div>
+    <div class="hint">Output size fixed • Mode auto-detects per file</div>
+  </nav>
 
-  <section class="controls">
-    <form action="/preview" method="post" enctype="multipart/form-data">
-      <div class="row">
-        <label>Mode:</label>
-        <select name="mode">
-          <option value="rgb" {{ 'selected' if mode == 'rgb' else '' }}>RGB</option>
-          <option value="edge" {{ 'selected' if mode == 'edge' else '' }}>Edge (grayscale)</option>
-        </select>
-      </div>
-      <div class="row">
-        <label>Target size:</label>
-        <input type="number" value="{{ target_w if target_w else 512 }}" disabled /> ×
-        <input type="number" value="{{ target_h if target_h else 512 }}" disabled />
-      </div>
-      <div class="row">
-        <label>Select images (multi):</label>
-        <input type="file" name="images" multiple accept="image/*" />
-      </div>
-      <button type="submit">Preview</button>
-    </form>
-  </section>
+  <main class="container">
+    <section class="panel">
+      <form action="/preview" method="post" enctype="multipart/form-data" class="form">
+        <div class="field">
+          <label>Mode hint</label>
+          <select name="mode">
+            <option value="rgb" {{ 'selected' if mode == 'rgb' else '' }}>RGB</option>
+            <option value="edge" {{ 'selected' if mode == 'edge' else '' }}>Edge (grayscale)</option>
+          </select>
+          <span class="note">Each file is auto-classified as RGB/Edge; this is a hint.</span>
+        </div>
 
-  {% if items %}
-  <section class="gallery">
-    {% for item in items %}
-      <div class="card">
-        <div class="meta">
-          <strong>{{ item.filename }}</strong>
-          <span class="sizes">Original: {{ item.orig_size }} → Resized: {{ item.new_size }}</span>
+        <div class="field readonly">
+          <label>Target size</label>
+          <div class="sizebox">
+            <input type="text" value="{{ target_w if target_w else 512 }}" readonly />
+            <span>×</span>
+            <input type="text" value="{{ target_h if target_h else 512 }}" readonly />
+          </div>
+          <span class="note">Configured in server; locked for consistency.</span>
+        </div>
+
+        <div class="field">
+          <label>Select images</label>
+          <div class="uploader">
+            <input id="file-input" type="file" name="images" multiple accept="image/*" />
+            <label for="file-input" class="button">Choose files</label>
+            <span class="uploader-note">Drag & drop supported</span>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="primary">Preview</button>
+        </div>
+      </form>
+    </section>
+
+    {% if items %}
+    <section class="results">
+      {% for item in items %}
+        <article class="card">
+          <header class="card-header">
+            <div class="filename">{{ item.filename }}</div>
+            <div class="sizes">Original: {{ item.orig_size }} → Resized: {{ item.new_size }}</div>
+          </header>
+
           {% if item.error %}
             <div class="error">Error: {{ item.error }}</div>
+          {% else %}
+          <div class="pair">
+            <figure class="imgbox">
+              <figcaption>Original</figcaption>
+              <img src="{{ item.original_url }}" alt="original" />
+            </figure>
+            <figure class="imgbox">
+              <figcaption>Resized</figcaption>
+              <img src="{{ item.resized_url }}" alt="resized" />
+            </figure>
+          </div>
           {% endif %}
-        </div>
-        <div class="pair">
-          <div class="imgbox">
-            <div class="label">Original</div>
-            <img src="{{ item.original_url }}" alt="original" />
-          </div>
-          <div class="imgbox">
-            <div class="label">Resized</div>
-            <img src="{{ item.resized_url }}" alt="resized" />
-          </div>
-        </div>
-      </div>
-    {% endfor %}
-  </section>
-  {% endif %}
+        </article>
+      {% endfor %}
+    </section>
+    {% endif %}
+  </main>
 
-  <footer>
-    <p>Powered by Flask + Pillow + OpenCV. Letterbox resize preserves aspect ratio; edges use bilinear (downscale) and nearest (upscale). Output size is fixed.</p>
+  <footer class="footer">
+    <div>Flask • Pillow • OpenCV — Letterbox preserves aspect ratio; edges use bilinear (downscale) and nearest (upscale).</div>
   </footer>
+
+  <script>
+    // Drag & drop enhancement
+    const input = document.getElementById('file-input');
+    const panel = document.querySelector('.panel');
+    ['dragenter','dragover'].forEach(evt => panel.addEventListener(evt, e => { e.preventDefault(); panel.classList.add('drag'); }));
+    ['dragleave','drop'].forEach(evt => panel.addEventListener(evt, e => { e.preventDefault(); panel.classList.remove('drag'); }));
+    panel.addEventListener('drop', e => { input.files = e.dataTransfer.files; });
+  </script>
 </body>
 </html>
