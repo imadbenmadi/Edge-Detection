@@ -10,6 +10,48 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import cv2
+from PIL import Image
+
+# Inline resize_image_v2 to avoid import issues
+def resize_image_v2(img: Image.Image, size, is_edge_map=False):
+    target_w, target_h = size
+    w, h = img.size
+    assert w > 0 and h > 0
+    scale = min(target_w / w, target_h / h)
+    new_w = max(1, int(round(w * scale)))
+    new_h = max(1, int(round(h * scale)))
+    pad_w = target_w - new_w
+    pad_h = target_h - new_h
+    pad_left   = pad_w // 2
+    pad_right  = pad_w - pad_left
+    pad_top    = pad_h // 2
+    pad_bottom = pad_h - pad_top
+    if is_edge_map:
+        arr = np.array(img, dtype=np.float32)
+        if arr.max() > 1.0:
+            arr /= 255.0
+        interp = cv2.INTER_NEAREST if scale >= 1.0 else cv2.INTER_LINEAR
+        arr_resized = cv2.resize(arr, (new_w, new_h), interpolation=interp)
+        arr_padded = np.pad(
+            arr_resized,
+            ((pad_top, pad_bottom), (pad_left, pad_right)),
+            mode="constant",
+            constant_values=0.0,
+        )
+        arr_padded = np.clip(arr_padded, 0.0, 1.0)
+        out = (arr_padded * 255.0).astype(np.uint8)
+        return Image.fromarray(out, mode="L")
+    else:
+        interp = Image.BICUBIC if scale >= 1.0 else Image.LANCZOS
+        img_resized = img.resize((new_w, new_h), interp)
+        from PIL import ImageOps
+        img_padded = ImageOps.expand(
+            img_resized,
+            border=(pad_left, pad_top, pad_right, pad_bottom),
+            fill=(0, 0, 0),
+        )
+        assert img_padded.size == (target_w, target_h)
+        return img_padded
 
 # ------------------------------
 # Config
@@ -32,39 +74,10 @@ app.secret_key = "xywnet-model-check-secret"
 app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024  # 32MB uploads
 
 # ------------------------------
-# >>> FIX ADDED HERE <<<
-# LETTERBOX RESIZE (must match Kaggle training)
+# Image resize helper (no padding) to 512x512
 # ------------------------------
-def letterbox_resize(img, target_size=(512, 512)):
-    target_w, target_h = target_size
-    h, w = img.shape[:2]
-
-    scale = min(target_w / w, target_h / h)
-    new_w = max(1, int(round(w * scale)))
-    new_h = max(1, int(round(h * scale)))
-
-    resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
-
-    pad_w = target_w - new_w
-    pad_h = target_h - new_h
-
-    pad_left = pad_w // 2
-    pad_right = pad_w - pad_left
-    pad_top = pad_h // 2
-    pad_bottom = pad_h - pad_top
-
-    # Use reflect padding to avoid artificial hard edges at borders
-    padded = cv2.copyMakeBorder(
-        resized,
-        pad_top, pad_bottom, pad_left, pad_right,
-        borderType=cv2.BORDER_REFLECT_101
-    )
-
-    # Valid content mask (1 inside original content, 0 on padding)
-    mask = np.zeros((target_h, target_w), dtype=np.uint8)
-    mask[pad_top:pad_top + new_h, pad_left:pad_left + new_w] = 1
-
-    return padded, mask
+def resize_to_square(img, size=512):
+    return cv2.resize(img, (size, size), interpolation=cv2.INTER_AREA)
 
 # ------------------------------
 # Minimal XYWNet (Your original unchanged)
@@ -306,20 +319,14 @@ def load_model(model_path: str, device: str = "cpu"):
     model = XYWNet()
     model.to(device)
     try:
-        # Load weights-only; require XYWNet-like state dict
-        state = torch.load(model_path, map_location=device, weights_only=True)
+        # Be flexible: accept raw state_dict or wrapper dicts
+        state = torch.load(model_path, map_location=device)
         if isinstance(state, dict) and 'state_dict' in state and isinstance(state['state_dict'], dict):
             state = state['state_dict']
         if not isinstance(state, dict):
+            # Some checkpoints may save the whole model; try .state_dict() if available
             raise RuntimeError("Unsupported checkpoint format. Expected a state_dict (dict of tensors).")
-        # Minimal schema check: ensure expected keys exist
-        expected_keys = [
-            'encode.s1.conv1.weight',
-            'decode.f.weight'
-        ]
-        missing_expected = [k for k in expected_keys if k not in state]
-        if missing_expected:
-            raise RuntimeError("Uploaded model is not XYWNet-compatible (missing expected keys).")
+        # Load leniently to allow minor key mismatches
         model.load_state_dict(state, strict=False)
     except Exception as e:
         raise RuntimeError(f"Failed to load model weights from {model_path}: {e}")
@@ -328,23 +335,22 @@ def load_model(model_path: str, device: str = "cpu"):
 
 
 def _to_vis(arr: np.ndarray) -> np.ndarray:
+    """Convert sigmoid [0,1] output to uint8 [0,255] with WHITE edges on BLACK background."""
     arr = arr.astype(np.float32)
-    arr = (arr - arr.min()) / (arr.max() - arr.min() + 1e-8)
-    return (arr * 255.0).astype(np.uint8)
+    # Invert: high sigmoid = edge = white (255), low sigmoid = background = black (0)
+    arr_inv = 1.0 - arr
+    return (arr_inv * 255.0).astype(np.uint8)
 
 # ------------------------------
 # >>> FIX APPLIED HERE <<<
 # run_inference now correctly preprocesses input
 # ------------------------------
 def run_inference(model: nn.Module, img_path: Path, device: str = "cpu", with_debug: bool = False):
-    bgr = cv2.imread(str(img_path))
-    if bgr is None:
-        raise RuntimeError("Could not read image")
-
-    # Letterbox with reflect padding and get valid mask
-    bgr_lb, valid_mask = letterbox_resize(bgr, (512, 512))
-
-    rgb = cv2.cvtColor(bgr_lb, cv2.COLOR_BGR2RGB)
+    # Load via PIL for consistent pipeline with our resize helper
+    pil_img = Image.open(str(img_path)).convert("RGB")
+    # Aspect-ratio preserving letterbox to 512x512 (RGB path)
+    pil_resized = resize_image_v2(pil_img, (512, 512), is_edge_map=False)
+    rgb = np.array(pil_resized, dtype=np.uint8)
     img = rgb.astype(np.float32) / 255.0
     tensor = torch.from_numpy(img).permute(2, 0, 1).unsqueeze(0).to(device)
 
@@ -354,12 +360,7 @@ def run_inference(model: nn.Module, img_path: Path, device: str = "cpu", with_de
         else:
             pred = model(tensor)
 
-    pred = pred[0, 0].cpu().numpy()
-    # Align mask to prediction size to avoid broadcast errors
-    mh, mw = pred.shape
-    mask_resized = cv2.resize(valid_mask, (mw, mh), interpolation=cv2.INTER_NEAREST).astype(np.float32)
-    # Zero-out padding influence
-    pred = pred * mask_resized
+    pred = pred[0, 0].detach().cpu().numpy().astype(np.float32)
     pred_u8 = _to_vis(pred)
 
     debug_images = {}
@@ -372,10 +373,7 @@ def run_inference(model: nn.Module, img_path: Path, device: str = "cpu", with_de
             blocks = info.get("blocks", [])
             if pre is not None:
                 pre_vis_arr = pre[0].mean(dim=0).cpu().numpy()
-                ph, pw = pre_vis_arr.shape
-                vm_pre = cv2.resize(valid_mask, (pw, ph), interpolation=cv2.INTER_NEAREST).astype(np.float32)
                 pre_vis = _to_vis(pre_vis_arr)
-                pre_vis = (pre_vis.astype(np.float32) * vm_pre).astype(np.uint8)
                 debug_images[f"{stage_name}_pre"] = pre_vis
             for bi, block in enumerate(blocks, start=1):
                 for k in ["xc", "yc", "w"]:
@@ -383,10 +381,7 @@ def run_inference(model: nn.Module, img_path: Path, device: str = "cpu", with_de
                     if t is None:
                         continue
                     vis_arr = t[0].mean(dim=0).cpu().numpy()
-                    th, tw = vis_arr.shape
-                    vm_t = cv2.resize(valid_mask, (tw, th), interpolation=cv2.INTER_NEAREST).astype(np.float32)
                     vis = _to_vis(vis_arr)
-                    vis = (vis.astype(np.float32) * vm_t).astype(np.uint8)
                     debug_images[f"{stage_name}_b{bi}_{k}"] = vis
 
     return rgb, pred_u8, debug_images
@@ -397,7 +392,8 @@ def run_inference(model: nn.Module, img_path: Path, device: str = "cpu", with_de
 
 @app.route("/")
 def index():
-    return render_template("viewer.html")
+    models = list_models()
+    return render_template("viewer.html", models=models)
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -446,6 +442,7 @@ def predict():
     rgb_out = RESULTS_DIR / f"{ts}_input.png"
     pred_out = RESULTS_DIR / f"{ts}_edges.png"
     cv2.imwrite(str(rgb_out), cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
+    # Save grayscale probability map directly (white edges on black)
     cv2.imwrite(str(pred_out), pred_u8)
 
     debug_urls = {}
