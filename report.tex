@@ -1,0 +1,284 @@
+
+\documentclass[12pt]{article}
+
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\title{Training XYW-Net: A Bio-Inspired Edge Detection Network}
+\author{Imed Benmadi}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This report documents the complete training pipeline for XYW-Net, a biologically inspired neural network for edge detection. We describe the model architecture, dataset preparation, training configuration, loss function design, and evaluation metrics. The training was performed on the HED-BSDS dataset using a checkpoint-based resume mechanism to overcome computational constraints. This document provides a comprehensive reference for reproducing the training process and serves as a foundation for future research directions in bio-inspired vision systems.
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+% =====================================================
+\section{Introduction}
+
+Edge detection is a fundamental task in computer vision. While classical operators (Sobel, Canny) rely on handcrafted filters, modern deep learning approaches learn hierarchical representations directly from data.
+
+XYW-Net is a biologically inspired architecture that models spatial filtering mechanisms observed in the retina. Unlike conventional CNNs, XYW-Net explicitly decomposes edge detection into three complementary pathways: center-surround contrast (X and Y streams) and directional selectivity (W stream). This bio-inspired design potentially offers better generalization and interpretability compared to purely data-driven architectures.
+
+% =====================================================
+\section{XYW-Net Architecture Overview}
+
+XYW-Net is composed of three main biological pathways:
+
+\begin{itemize}
+\item \textbf{X-stream:} Local center-surround contrast using $3 \times 3$ convolutions
+\item \textbf{Y-stream:} Large receptive field contrast using $5 \times 5$ dilated convolutions
+\item \textbf{W-stream:} Directional selectivity using separable $1 \times 3$ and $3 \times 1$ convolutions
+\end{itemize}
+
+\subsection{Encoder Architecture}
+
+The encoder consists of four cascading stages, each implementing center-surround mechanisms:
+
+\begin{itemize}
+\item \textbf{Stage 1:} Initial feature extraction with 30 channels, no downsampling
+\item \textbf{Stage 2:} Downsampling + refinement with 60 channels
+\item \textbf{Stage 3:} Downsampling + refinement with 120 channels
+\item \textbf{Stage 4:} Final downsampling with 120 channels
+\end{itemize}
+
+Each stage combines X, Y, and W pathways to produce a blended representation capturing both local and large-scale spatial structure.
+
+\subsection{Decoder Architecture}
+
+The decoder is a multi-scale refinement architecture that progressively upsamples and fuses feature maps from all encoder stages. At each refinement level:
+
+\begin{equation}
+F_{i} = \text{Conv}_{\text{refine}}(F_{i-1}) + \text{Upsample}(F_{i+1})
+\end{equation}
+
+The final output is passed through a sigmoid activation to produce a probability map in $[0, 1]$.
+
+\subsection{Model Size}
+
+The complete XYW-Net model contains approximately $1.2$ million learnable parameters.
+
+% =====================================================
+
+
+% =====================================================
+\section{Dataset Preparation}
+
+\subsection{HED-BSDS Dataset}
+
+We use the HED-BSDS dataset, which combines the Berkeley Segmentation Dataset (BSDS500) with annotations from the Holistically-Nested Edge Detection (HED) project. The dataset is processed into a standardized directory structure:
+
+\begin{verbatim}
+processed_HED_v2/
+├── train/
+│   ├── images/    (RGB images, PNG)
+│   └── edges/     (ground-truth edge maps, PNG)
+├── val/
+│   ├── images/
+│   └── edges/
+└── test/
+    ├── images/
+    └── edges/
+\end{verbatim}
+
+\subsection{Data Preprocessing}
+
+All images are preprocessed using a \textbf{letterbox resizing} strategy to preserve aspect ratio:
+
+\begin{enumerate}
+\item Compute scale factor: $s = \min(W_{\text{target}}/W, H_{\text{target}}/H)$
+\item Resize image and edge map by factor $s$
+\item Pad to target size with zeros, maintaining perfect alignment
+\item Normalize RGB images to $[0, 1]$
+\item Normalize edge maps to $[0, 1]$
+\end{enumerate}
+
+This approach ensures pixel-perfect alignment between input images and ground-truth labels, which is critical for training edge detection networks.
+
+\subsection{Dataset Statistics}
+
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+Split & Images & Min Size & Max Size \\
+\midrule
+Train & 200 & 321×481 & 512×512 \\
+Val & 50 & 256×350 & 512×512 \\
+Test & 100 & 270×360 & 512×512 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Before training, all images are verified for integrity: each RGB image has a corresponding edge map with matching dimensions.
+
+% =====================================================
+
+
+
+
+
+% =====================================================
+\section{Loss Function}
+
+We use a weighted binary cross-entropy loss specifically designed for edge detection:
+
+\begin{equation}
+\mathcal{L} = -\frac{1}{N_+} \sum_{p \in \text{edge}} w_p \log(\hat{p}) - \frac{1}{N_-} \sum_{p \in \text{non-edge}} \log(1 - \hat{p})
+\end{equation}
+
+where:
+\begin{itemize}
+\item $w_p$ is the annotation weight (label value in $[0, 1]$)
+\item $N_+$ and $N_-$ are the counts of positive and negative pixels
+\item $\hat{p}$ is the network prediction
+\end{itemize}
+
+This formulation provides balance between foreground (edge) and background (non-edge) pixels, preventing the network from ignoring the sparse edge regions.
+
+% =====================================================
+\section{Evaluation Metrics}
+
+We use three standard metrics for edge detection evaluation:
+
+\subsection{Optimal Dataset Scale (ODS)}
+
+ODS is the best F-score using a single threshold across the entire test set:
+
+\begin{equation}
+\text{ODS} = \max_{\tau} F(\tau) \quad \text{where} \quad F(\tau) = \frac{2PR}{P+R}
+\end{equation}
+
+\subsection{Optimal Image Scale (OIS)}
+
+OIS is the average of the best F-score computed separately for each image:
+
+\begin{equation}
+\text{OIS} = \frac{1}{N} \sum_{i=1}^{N} \max_{\tau} F_i(\tau)
+\end{equation}
+
+\subsection{Average Precision (AP)}
+
+AP is computed from the precision-recall curve:
+
+\begin{equation}
+\text{AP} = \int_0^1 P(r) \, dr
+\end{equation}
+
+% =====================================================
+\section{Training Configuration}
+
+\subsection{Hyperparameters}
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+Parameter & Value \\
+\midrule
+Learning rate & $1 \times 10^{-4}$ \\
+Batch size & 4 \\
+Optimizer & Adam \\
+Weight decay & $1 \times 10^{-4}$ \\
+LR scheduler & StepLR (step=10, gamma=0.5) \\
+Total epochs & 20 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Checkpoint-Based Training}
+
+Due to computational constraints (approximately 1 hour per epoch), training is performed using a checkpoint mechanism:
+
+\begin{enumerate}
+\item Train for $N$ epochs
+\item Save complete state: model parameters, optimizer state, scheduler state, epoch number
+\item In next session, load checkpoint and resume from epoch $N+1$
+\item Continue until target number of epochs is reached
+\end{enumerate}
+
+Complete checkpoints are saved as:
+\begin{verbatim}
+{
+  "epoch": <current_epoch>,
+  "model_state": <state_dict>,
+  "optimizer_state": <optimizer_state>,
+  "scheduler_state": <scheduler_state>,
+  "best_ods": <best_metric>
+}
+\end{verbatim}
+
+This allows flexible long-term training without losing progress.
+
+% =====================================================
+\section{Training Procedure}
+
+The complete training pipeline follows these steps:
+
+\begin{algorithm}
+\caption{XYW-Net Training with Checkpoint Resume}
+\begin{algorithmic}
+\State Load dataset (train, val, test splits)
+\State Initialize model, optimizer, scheduler
+\If{checkpoint exists}
+  \State Load checkpoint and resume from saved epoch
+\Else
+  \State Start from epoch 0
+\EndIf
+\For{epoch $\in$ [start\_epoch, total\_epochs]}
+  \For{batch $\in$ train\_loader}
+    \State Predict: $\hat{y} = \text{model}(x)$
+    \State Compute loss: $\mathcal{L} = \text{criterion}(\hat{y}, y)$
+    \State Backward: $\mathcal{L}.backward()$
+    \State Update: $\theta \leftarrow \theta - \alpha \nabla \theta$
+  \EndFor
+  \For{batch $\in$ val\_loader}
+    \State Compute ODS, OIS, AP
+    \If{ODS > best\_ODS}
+      \State Save model weights
+      \State Save checkpoint
+    \EndIf
+  \EndFor
+  \State scheduler.step()
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+% =====================================================
+\section{Results Placeholder}
+
+\subsection{Training Curves}
+
+Final training and validation curves (loss, ODS, OIS, AP) will be added here after completion of 20-epoch training.
+
+\subsection{Quantitative Results}
+
+Test set performance metrics (ODS, OIS, AP) and comparisons with baseline methods will be provided.
+
+\subsection{Qualitative Results}
+
+Sample predictions on test images, including successful detections and failure cases, will be shown.
+
+% =====================================================
+\section{Future Research Directions}
+
+\begin{enumerate}
+\item Extended training (30+ epochs) to achieve convergence
+\item Multi-dataset training and transfer learning analysis
+\item Ablation studies on X, Y, W pathway contributions
+\item Robustness evaluation on out-of-distribution images
+\item Comparison with state-of-the-art methods (HED, RCF, DexiNed)
+\item Optimization for deployment (quantization, pruning)
+\end{enumerate}
+
+\end{document}

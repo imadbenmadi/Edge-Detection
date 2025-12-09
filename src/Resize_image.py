@@ -72,10 +72,8 @@ def resize_image_v2(img, size, is_edge_map=False):
 
     target_w, target_h = size
     w, h = img.size
-
     # Safety check
     assert w > 0 and h > 0, "Invalid image size"
-
     # Aspect-ratio preserving scale
     scale = min(target_w / w, target_h / h)
     new_w = max(1, int(round(w * scale)))
@@ -91,47 +89,37 @@ def resize_image_v2(img, size, is_edge_map=False):
 
     if is_edge_map:
         # --- EDGE MAP PIPELINE ---
-
         arr = np.array(img, dtype=np.float32)
         if arr.max() > 1.0:
             arr /= 255.0  # normalize safely to [0,1]
 
         interp = cv2.INTER_NEAREST if scale >= 1.0 else cv2.INTER_LINEAR
-
         arr_resized = cv2.resize(
             arr,
             (new_w, new_h),
             interpolation=interp
         )
-
         arr_padded = np.pad(
             arr_resized,
             ((pad_top, pad_bottom), (pad_left, pad_right)),
             mode="constant",
             constant_values=0.0
         )
-
         arr_padded = np.clip(arr_padded, 0.0, 1.0)
         out = (arr_padded * 255.0).astype(np.uint8)
-
         return Image.fromarray(out, mode="L")
-
     else:
         # --- RGB IMAGE PIPELINE ---
-
         interp = Image.BICUBIC if scale >= 1.0 else Image.LANCZOS
-
         img_resized = img.resize(
             (new_w, new_h),
             interp
         )
-
         img_padded = ImageOps.expand(
             img_resized,
             border=(pad_left, pad_top, pad_right, pad_bottom),
             fill=(0, 0, 0)
         )
-
         # Final safety check
         assert img_padded.size == (target_w, target_h), \
             f"Output size mismatch: {img_padded.size} vs {(target_w, target_h)}"
