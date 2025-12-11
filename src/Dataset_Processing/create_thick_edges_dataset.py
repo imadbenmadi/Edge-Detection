@@ -4,8 +4,9 @@ Create a thickened edge detection dataset from processed_HED_v2.
 This script:
 1. Loads images and edge maps from processed_HED_v2
 2. Thickens edges using dilation morphological operations
-3. Creates a new 'dataset_hed_thick' folder with a subset of 200 images
-4. Preserves the train/val/test split structure
+3. Creates a new 'HED_Thick' folder with a subset of 50 images
+4. Resizes all images to GLOBAL_SIZE (512, 512) with aspect ratio preservation
+5. Preserves the train/val/test split structure
 
 Purpose: Test if thicker edges improve model training performance
 """
@@ -15,7 +16,7 @@ import shutil
 import cv2
 import numpy as np
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageOps
 from tqdm import tqdm
 import random
 
@@ -24,16 +25,73 @@ BASE_DIR = Path(r"E:\Edge Detection\datasets")
 SOURCE_DIR = BASE_DIR / "processed_HED_v2"  # Source dataset
 OUTPUT_DIR = BASE_DIR / "HED_Thick"  # New thick edges dataset
 
+# Global image size (width, height) - must match training configuration
+GLOBAL_SIZE = (512, 512)
+
 # Number of images per split to create  
 IMAGES_PER_SPLIT = {
-    'train': 140,  # 70% (140 images)
-    'val': 30,     # 15% (30 images)
-    'test': 30     # 15% (30 images)
-}  # Total = 200 images
+    'train': 35,  # 70% (35 images)
+    'val': 8,     # 16% (8 images)
+    'test': 7     # 14% (7 images)
+}  # Total = 50 images
 
 # Morphological operation parameters for edge thickening
 KERNEL_SIZE = 3
 THICKENING_ITERATIONS = 3  # Number of morphological thickening iterations
+
+
+def resize_image_v2(img, size, is_edge_map=False):
+    """
+    Research-grade, aspect-ratio preserving letterbox resize.
+    - Preserves geometry (no distortion)
+    - Uses interpolation based on scaling direction
+    - Protects edge-label integrity
+    - Produces pixel-aligned RGB + edge maps
+    - Guaranteed output size
+    """
+    target_w, target_h = size
+    w, h = img.size
+
+    # Compute scale while preserving aspect ratio
+    scale = min(target_w / w, target_h / h)
+    new_w = max(1, int(round(w * scale)))
+    new_h = max(1, int(round(h * scale)))
+
+    if is_edge_map:
+        # Convert to float array in [0,1]
+        arr = np.array(img).astype(np.float32)
+        if arr.max() > 1.0:
+            arr = arr / 255.0
+
+        # Choose interpolation based on scaling direction
+        interp = cv2.INTER_NEAREST if scale >= 1.0 else cv2.INTER_LINEAR
+        arr_resized = cv2.resize(arr, (new_w, new_h), interpolation=interp)
+
+        # Pad to target size with zeros
+        pad_w = target_w - new_w
+        pad_h = target_h - new_h
+        pad_left = pad_w // 2
+        pad_right = pad_w - pad_left
+        pad_top = pad_h // 2
+        pad_bottom = pad_h - pad_top
+        arr_padded = np.pad(
+            arr_resized,
+            ((pad_top, pad_bottom), (pad_left, pad_right)),
+            mode='constant',
+            constant_values=0.0,
+        )
+
+        out = (np.clip(arr_padded, 0.0, 1.0) * 255.0).astype(np.uint8)
+        return Image.fromarray(out, mode='L')
+    else:
+        # High-quality downscale for RGB
+        img_resized = img.resize((new_w, new_h), Image.LANCZOS)
+        # Pad with black to reach target size
+        pad_w = target_w - new_w
+        pad_h = target_h - new_h
+        pad = (pad_w // 2, pad_h // 2, pad_w - pad_w // 2, pad_h - pad_h // 2)
+        img_padded = ImageOps.expand(img_resized, border=pad, fill=(0, 0, 0))
+        return img_padded
 
 
 def create_output_dirs():
@@ -207,8 +265,12 @@ def process_dataset():
                 
                 edge = Image.open(edge_path).convert('L')
                 
-                # Thicken the edges
-                thickened_edge = thick_edges_v3(edge, target_thickness=1)
+                # Resize image and edge to GLOBAL_SIZE first
+                img_resized = resize_image_v2(img, GLOBAL_SIZE, is_edge_map=False)
+                edge_resized = resize_image_v2(edge, GLOBAL_SIZE, is_edge_map=True)
+                
+                # Thicken the edges after resizing
+                thickened_edge = thick_edges_v3(edge_resized, target_thickness=1)
                 
                 # Save to NEW dataset
                 output_name = f"hed_thick_{split}_{count:06d}.png"
@@ -217,9 +279,9 @@ def process_dataset():
                 (OUTPUT_DIR / split / 'images').mkdir(parents=True, exist_ok=True)
                 (OUTPUT_DIR / split / 'edges').mkdir(parents=True, exist_ok=True)
                 
-                # Save image (copy of original, unchanged)
-                img.save(OUTPUT_DIR / split / 'images' / output_name, 'PNG')
-                # Save thickened edge map (modified)
+                # Save resized image
+                img_resized.save(OUTPUT_DIR / split / 'images' / output_name, 'PNG')
+                # Save thickened and resized edge map
                 thickened_edge.save(OUTPUT_DIR / split / 'edges' / output_name, 'PNG')
                 
                 count += 1
@@ -237,6 +299,7 @@ def process_dataset():
     print("="*70)
     print(f"Total images processed: {total_processed}")
     print(f"Output directory: {OUTPUT_DIR}")
+    print(f"Global image size: {GLOBAL_SIZE[0]}x{GLOBAL_SIZE[1]}")
     print(f"Edges have been THICKENED for better ground truth")
     print(f"Ready for training!")
     print("="*70)
@@ -303,7 +366,8 @@ def main():
     print(f"Source directory: {SOURCE_DIR}")
     print(f"Output directory: {OUTPUT_DIR}")
     print(f"Target subset size: {sum(IMAGES_PER_SPLIT.values())} images")
-    print(f"Operation: THICKENING edges using dilation")
+    print(f"Global image size: {GLOBAL_SIZE[0]}x{GLOBAL_SIZE[1]}")
+    print(f"Operation: THICKENING edges using dilation + RESIZING to global size")
     print("="*70)
     
     # Check if source directory exists
