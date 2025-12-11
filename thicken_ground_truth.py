@@ -1,0 +1,212 @@
+"""
+Ground Truth Edge Thickening Script
+
+This script processes ground truth edge detection images by:
+1. Copying them to a new output directory
+2. Applying edge thickening using morphological dilation (5px kernel)
+3. Supporting configurable input/output paths
+
+The thickened edges can improve training results by making ground truth
+annotations more consistent and easier for the model to learn.
+"""
+
+import os
+import glob
+from pathlib import Path
+from PIL import Image
+import numpy as np
+import cv2
+from tqdm import tqdm
+
+# ============================================================================
+# CONFIGURATION - Modify these variables to change behavior
+# ============================================================================
+
+# Input directory containing ground truth edge images
+INPUT_GT_DIR = "data/ground_truth/original"
+
+# Output directory for thickened ground truth images
+OUTPUT_GT_DIR = "data/ground_truth/thickened"
+
+# Edge thickness in pixels (kernel size for morphological dilation)
+EDGE_THICKNESS_PX = 5
+
+# Supported image file extensions
+SUPPORTED_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif']
+
+# ============================================================================
+# FUNCTIONS
+# ============================================================================
+
+def create_output_dir(output_dir):
+    """
+    Create the output directory if it doesn't exist.
+    
+    Args:
+        output_dir (str or Path): Path to the output directory
+    """
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    print(f"Output directory: {output_path.absolute()}")
+
+
+def get_image_files(input_dir, extensions):
+    """
+    Get all image files from the input directory with supported extensions.
+    
+    Args:
+        input_dir (str or Path): Path to the input directory
+        extensions (list): List of supported file extensions
+    
+    Returns:
+        list: List of Path objects for found image files
+    """
+    input_path = Path(input_dir)
+    
+    if not input_path.exists():
+        raise ValueError(f"Input directory does not exist: {input_path.absolute()}")
+    
+    image_files = []
+    for ext in extensions:
+        # Case-insensitive search
+        image_files.extend(input_path.glob(f"*{ext}"))
+        image_files.extend(input_path.glob(f"*{ext.upper()}"))
+    
+    # Remove duplicates and sort
+    image_files = sorted(list(set(image_files)))
+    
+    return image_files
+
+
+def thicken_edges(image, thickness_px):
+    """
+    Thicken edges in a grayscale edge map using morphological dilation.
+    
+    Args:
+        image (numpy.ndarray): Grayscale edge map (values 0-255)
+        thickness_px (int): Edge thickness in pixels (kernel size)
+    
+    Returns:
+        numpy.ndarray: Thickened edge map
+    """
+    # Create a circular kernel for more natural-looking edge thickening
+    # Using ellipse kernel which is better for edge detection tasks
+    kernel = cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE, 
+        (thickness_px, thickness_px)
+    )
+    
+    # Apply morphological dilation to thicken the edges
+    thickened = cv2.dilate(image, kernel, iterations=1)
+    
+    return thickened
+
+
+def process_image(input_path, output_path, thickness_px):
+    """
+    Process a single ground truth image by thickening its edges.
+    
+    Args:
+        input_path (Path): Path to input image
+        output_path (Path): Path to save output image
+        thickness_px (int): Edge thickness in pixels
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        # Load image and convert to grayscale
+        image = Image.open(input_path).convert('L')
+        
+        # Convert to numpy array
+        img_array = np.array(image, dtype=np.uint8)
+        
+        # Thicken the edges
+        thickened_array = thicken_edges(img_array, thickness_px)
+        
+        # Convert back to PIL Image
+        thickened_image = Image.fromarray(thickened_array, mode='L')
+        
+        # Save the result (always as PNG for lossless quality)
+        output_path_png = output_path.with_suffix('.png')
+        thickened_image.save(output_path_png, 'PNG')
+        
+        return True
+        
+    except Exception as e:
+        print(f"Error processing {input_path.name}: {e}")
+        return False
+
+
+def print_statistics(total_files, successful_files, failed_files):
+    """
+    Print processing statistics.
+    
+    Args:
+        total_files (int): Total number of files found
+        successful_files (int): Number of successfully processed files
+        failed_files (int): Number of failed files
+    """
+    print("\n" + "="*60)
+    print("PROCESSING STATISTICS")
+    print("="*60)
+    print(f"Total files found:       {total_files}")
+    print(f"Successfully processed:  {successful_files}")
+    print(f"Failed:                  {failed_files}")
+    print("="*60)
+
+
+def main():
+    """
+    Main function to process all ground truth images.
+    """
+    print("="*60)
+    print("GROUND TRUTH EDGE THICKENING SCRIPT")
+    print("="*60)
+    print(f"Input directory:   {Path(INPUT_GT_DIR).absolute()}")
+    print(f"Output directory:  {Path(OUTPUT_GT_DIR).absolute()}")
+    print(f"Edge thickness:    {EDGE_THICKNESS_PX}px")
+    print("="*60)
+    
+    # Create output directory
+    create_output_dir(OUTPUT_GT_DIR)
+    
+    # Get all image files from input directory
+    try:
+        image_files = get_image_files(INPUT_GT_DIR, SUPPORTED_EXTENSIONS)
+    except ValueError as e:
+        print(f"Error: {e}")
+        return
+    
+    if not image_files:
+        print(f"Warning: No image files found in {INPUT_GT_DIR}")
+        print(f"Supported extensions: {', '.join(SUPPORTED_EXTENSIONS)}")
+        return
+    
+    print(f"\nFound {len(image_files)} image file(s) to process\n")
+    
+    # Process each image
+    successful = 0
+    failed = 0
+    
+    for img_path in tqdm(image_files, desc="Processing images"):
+        # Preserve the original filename
+        output_path = Path(OUTPUT_GT_DIR) / img_path.name
+        
+        if process_image(img_path, output_path, EDGE_THICKNESS_PX):
+            successful += 1
+        else:
+            failed += 1
+    
+    # Print statistics
+    print_statistics(len(image_files), successful, failed)
+    
+    if successful > 0:
+        print(f"\n✓ Processing complete! Thickened images saved to:")
+        print(f"  {Path(OUTPUT_GT_DIR).absolute()}")
+    else:
+        print("\n✗ No images were successfully processed.")
+
+
+if __name__ == "__main__":
+    main()

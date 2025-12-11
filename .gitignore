@@ -3,3 +3,6 @@ data
 generated_maps
 results
 uploads
+__pycache__
+*.pyc
+*.pyo
