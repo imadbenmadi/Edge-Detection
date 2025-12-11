@@ -73,7 +73,7 @@ def get_image_files(input_dir, extensions):
     if not input_path.exists():
         raise ValueError(
             f"Input directory does not exist: {input_path.absolute()}\n"
-            f"Please check the INPUT_GT_DIR configuration or create the directory."
+            f"Please verify the path and create the directory if needed."
         )
     
     image_files = []
@@ -99,8 +99,9 @@ def thicken_edges(image, thickness_px):
     Returns:
         numpy.ndarray: Thickened edge map
     """
-    # Create a circular kernel for more natural-looking edge thickening
-    # Using ellipse kernel which is better for edge detection tasks
+    # Create an elliptical kernel for natural-looking edge thickening
+    # When thickness_px creates a square size, this produces a circular shape
+    # Better for edge detection tasks than rectangular kernels
     kernel = cv2.getStructuringElement(
         cv2.MORPH_ELLIPSE, 
         (thickness_px, thickness_px)
