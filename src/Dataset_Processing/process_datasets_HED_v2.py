@@ -35,8 +35,7 @@ BASE_DIR = Path(r"E:\Edge Detection\datasets")
 OUTPUT_DIR = BASE_DIR / "processed_HED_v2"
 
 # Global image size (width, height) - commonly used sizes for edge detection
-GLOBAL_SIZE = (512, 512)  # You can adjust this
-
+GLOBAL_SIZE = (512, 512)  
 # Counter for unique naming across all datasets
 global_counters = {'train': 0, 'val': 0, 'test': 0}
 
