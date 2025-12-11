@@ -232,7 +232,7 @@ class encode(nn.Module):
 
 
 # ============================================================
-#  UPSAMPLE HELPERS (SAME AS IN YOUR CODE)
+#  UPSAMPLE HELPERS 
 # ============================================================
 def upsample_filt(size):
     factor = (size + 1) // 2

@@ -13,7 +13,7 @@ import os
 import time
 import urllib.request
 import urllib.error
-import model  # Your XYW-Net
+import model  
 
 # ============================================================================
 # DOWNLOAD PRETRAINED MODELS
@@ -287,7 +287,7 @@ if __name__ == '__main__':
     
     if not os.path.exists(image_path):
         print(f"❌ Image not found: {image_path}")
-        print("\nPlace your test image as 'test_image.jpg' in the project folder")
+        print("\nPlace the test image as 'test_image.jpg' in the project folder")
         exit(1)
     
     print("\n" + "="*70)

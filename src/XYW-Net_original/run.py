@@ -12,7 +12,7 @@ def test_single_image(image_path, model_path='./xyw.pth'):
     Test XYW-Net on a single image
     
     Args:
-        image_path: Path to your input image
+        image_path: Path to the input image
         model_path: Path to trained model checkpoint
     """
     
@@ -97,16 +97,16 @@ def test_single_image(image_path, model_path='./xyw.pth'):
     return output, output_path
 
 if __name__ == '__main__':
-    # Test on your image
-    image_path = './test_image.jpg'  # ← Change this to your image path
+    # Test on the image
+    image_path = './test_image.jpg'  # ← Change this to the image path
     
     if not os.path.exists(image_path):
         print(f"❌ Image not found: {image_path}")
         print("\n" + "="*60)
         print("HOW TO USE:")
         print("="*60)
-        print("1. Place your image in the project folder")
-        print("2. Update 'image_path' variable with your image filename")
+        print("1. Place the image in the project folder")
+        print("2. Update 'image_path' variable with the image filename")
         print("3. Run: python run.py")
         print("\nExample:")
         print("   image_path = './my_photo.jpg'")
@@ -114,4 +114,4 @@ if __name__ == '__main__':
         print("="*60)
     else:
         output, output_path = test_single_image(image_path)
-        print("\nxyw.pth Done! Your edge detection result is ready!")
+        print("\nxyw.pth Done! the edge detection result is ready!")

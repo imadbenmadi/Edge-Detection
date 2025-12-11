@@ -80,7 +80,7 @@ def resize_to_square(img, size=512):
     return cv2.resize(img, (size, size), interpolation=cv2.INTER_AREA)
 
 # ------------------------------
-# Minimal XYWNet (Your original unchanged)
+# Minimal XYWNet 
 # ------------------------------
 class Xc1x1(nn.Module):
     def __init__(self, in_channels, out_channels):

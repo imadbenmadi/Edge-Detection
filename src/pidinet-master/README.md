@@ -131,7 +131,7 @@ For evaluating NYUD, following [RCF](https://openaccess.thecvf.com/content_cvpr_
 ## PR curves
 Please follow [plot-edge-pr-curves](https://github.com/MCG-NKU/plot-edge-pr-curves), files for plotting pr curves of PiDiNet are provided in [pidinet_pr_curves](pidinet_pr_curves).
 
-## Generating edge maps for your own images
+## Generating edge maps for the images
 ```bash
 python main.py --model pidinet_converted --config carv4 --sa --dil -j 4 --gpu 0 --savedir /path/to/savedir --datadir /path/to/custom_images --dataset Custom --evaluate /path/to/table5_pidinet/save_models/checkpointxxx.pth --evaluate-converted
 ```

@@ -175,7 +175,7 @@ def download_test_image():
     
     except Exception as e:
         print(f"⚠ Could not download test image: {e}")
-        print("  You can provide your own image or use any RGB image in the current directory")
+        print("  You can provide the image or use any RGB image in the current directory")
 
 def main():
     parser = argparse.ArgumentParser(description="Bio-XYW-Net Quick Start")
@@ -223,7 +223,7 @@ def main():
         print("  1. Read the documentation:")
         print("     cat BIO_XYW_NET_DOCUMENTATION.md")
         print("")
-        print("  2. Test inference on your image:")
+        print("  2. Test inference on the image:")
         print("     python bio_test.py --image test_image.jpg --visualize_frontend")
         print("")
         print("  3. Train a model:")
@@ -233,10 +233,10 @@ def main():
         print("     python robustness_tests.py --image test_image.jpg")
         print("")
     else:
-        print("✗ Some tests failed. Please check your installation.")
+        print("✗ Some tests failed. Please check the installation.")
     
     print("\nDocumentation: BIO_XYW_NET_DOCUMENTATION.md")
-    print("Contact: [Your contact info]\n")
+
 
 if __name__ == '__main__':
     main()
