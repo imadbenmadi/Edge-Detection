@@ -24,11 +24,11 @@ BASE_DIR = Path(r"E:\Edge Detection\datasets")
 SOURCE_DIR = BASE_DIR / "processed_HED_v2"  # Source dataset
 OUTPUT_DIR = BASE_DIR / "HED_Thick"  # New thick edges dataset
 
-# Number of images per split to create
+# Number of images per split to create  
 IMAGES_PER_SPLIT = {
-    'train': 120,  # 120 train images
-    'val': 40,     # 40 val images
-    'test': 40     # 40 test images
+    'train': 140,  # 70% (140 images)
+    'val': 30,     # 15% (30 images)
+    'test': 30     # 15% (30 images)
 }  # Total = 200 images
 
 # Morphological operation parameters for edge thickening
@@ -142,44 +142,64 @@ def thick_edges_v3(edge_map, target_thickness=5):
 def process_dataset():
     """Process the dataset with thicker edges."""
     print("\n" + "="*70)
-    print("CREATING THICK EDGES DATASET (dataset_hed_thick)")
+    print("CREATING THICK EDGES DATASET (HED_Thick)")
     print("="*70)
     
     create_output_dirs()
     
     total_processed = 0
     
+    # Get all images from train split (since val/test may be empty or have different data)
+    train_imgs = list((SOURCE_DIR / 'train' / 'images').glob('*.png'))
+    print(f"\nTotal source images available in 'train': {len(train_imgs)}")
+    print(f"Sampling {sum(IMAGES_PER_SPLIT.values())} images with splits: train={IMAGES_PER_SPLIT['train']}, val={IMAGES_PER_SPLIT['val']}, test={IMAGES_PER_SPLIT['test']}\n")
+    
+    # Shuffle and split
+    random.shuffle(train_imgs)
+    train_count = IMAGES_PER_SPLIT['train']
+    val_count = IMAGES_PER_SPLIT['val']
+    test_count = IMAGES_PER_SPLIT['test']
+    
+    train_split = train_imgs[:train_count]
+    val_split = train_imgs[train_count:train_count + val_count]
+    test_split = train_imgs[train_count + val_count:train_count + val_count + test_count]
+    
+    print(f"Allocated: train={len(train_split)}, val={len(val_split)}, test={len(test_split)}\n")
+    
+    splits_data = {
+        'train': train_split,
+        'val': val_split,
+        'test': test_split,
+    }
+    
+    # Process each split
     for split in ['train', 'val', 'test']:
-        source_img_dir = SOURCE_DIR / split / 'images'
-        source_edge_dir = SOURCE_DIR / split / 'edges'
-        
-        output_img_dir = OUTPUT_DIR / split / 'images'
-        output_edge_dir = OUTPUT_DIR / split / 'edges'
-        
-        if not source_img_dir.exists():
-            print(f"Source {split} directory not found: {source_img_dir}")
-            continue
-        
-        # Get all available images
-        img_files = list(source_img_dir.glob("*.png"))
+        img_files = splits_data.get(split, [])
         
         if not img_files:
-            print(f"No images found in {source_img_dir}")
+            print(f"\n{split.upper()}: No images to process")
             continue
         
-        # Randomly select subset
-        target_count = IMAGES_PER_SPLIT[split]
-        selected_files = random.sample(img_files, min(target_count, len(img_files)))
-        
-        print(f"\n{split.upper()}: Processing {len(selected_files)} images...")
+        print(f"\n{split.upper()}: Processing {len(img_files)} images...")
         print(f"(Creating a copy with THICKENED edges, original dataset unchanged)")
         
         count = 0
-        for img_path in tqdm(selected_files, desc=f"Thickening {split} edges"):
+        for img_path in tqdm(img_files, desc=f"Thickening {split} edges"):
             try:
                 # Load image and edge map from source (READ ONLY)
                 img = Image.open(img_path).convert('RGB')
-                edge_path = source_edge_dir / img_path.name
+                
+                # Determine which split the image is from in source
+                source_split = None
+                for check_split in ['train', 'val', 'test']:
+                    if (SOURCE_DIR / check_split / 'images' / img_path.name).exists():
+                        source_split = check_split
+                        break
+                
+                if source_split is None:
+                    source_split = 'train'  # Default to train if not found
+                
+                edge_path = SOURCE_DIR / source_split / 'edges' / img_path.name
                 
                 if not edge_path.exists():
                     print(f"Edge map not found for {img_path.name}")
@@ -187,16 +207,20 @@ def process_dataset():
                 
                 edge = Image.open(edge_path).convert('L')
                 
-                # Thicken the edges (using v3 which gives thicker edges)
+                # Thicken the edges
                 thickened_edge = thick_edges_v3(edge, target_thickness=1)
                 
-                # Save to NEW dataset (without modifying original)
+                # Save to NEW dataset
                 output_name = f"hed_thick_{split}_{count:06d}.png"
                 
+                # Ensure output directories exist
+                (OUTPUT_DIR / split / 'images').mkdir(parents=True, exist_ok=True)
+                (OUTPUT_DIR / split / 'edges').mkdir(parents=True, exist_ok=True)
+                
                 # Save image (copy of original, unchanged)
-                img.save(output_img_dir / output_name, 'PNG')
+                img.save(OUTPUT_DIR / split / 'images' / output_name, 'PNG')
                 # Save thickened edge map (modified)
-                thickened_edge.save(output_edge_dir / output_name, 'PNG')
+                thickened_edge.save(OUTPUT_DIR / split / 'edges' / output_name, 'PNG')
                 
                 count += 1
                 total_processed += 1
@@ -204,7 +228,7 @@ def process_dataset():
             except Exception as e:
                 print(f"Error processing {img_path}: {e}")
         
-        print(f"✓ Processed {count} {split} images (copied to new dataset with THICKENED edges)")
+        print(f"[OK] Processed {count} {split} images with THICKENED edges")
     
     print_statistics()
     

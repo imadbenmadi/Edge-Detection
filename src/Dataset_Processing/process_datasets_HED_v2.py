@@ -39,6 +39,13 @@ GLOBAL_SIZE = (512, 512)
 # Counter for unique naming across all datasets
 global_counters = {'train': 0, 'val': 0, 'test': 0}
 
+# Data split ratios
+SPLIT_RATIOS = {
+    'train': 0.70,  # 70% for training
+    'val': 0.15,    # 15% for validation
+    'test': 0.15    # 15% for testing
+}
+
 # Create output directory structure
 def create_output_dirs():
     """Create the output directory structure."""
@@ -46,6 +53,21 @@ def create_output_dirs():
         (OUTPUT_DIR / split / 'images').mkdir(parents=True, exist_ok=True)
         (OUTPUT_DIR / split / 'edges').mkdir(parents=True, exist_ok=True)
     print(f"Created output directories in {OUTPUT_DIR}")
+
+
+def assign_split(index, total_count):
+    """Assign a sample to train/val/test split based on index and ratios."""
+    train_threshold = SPLIT_RATIOS['train']
+    val_threshold = train_threshold + SPLIT_RATIOS['val']
+    
+    ratio = index / total_count
+    
+    if ratio < train_threshold:
+        return 'train'
+    elif ratio < val_threshold:
+        return 'val'
+    else:
+        return 'test'
 
 
 def resize_image(img, size, is_edge_map=False):
