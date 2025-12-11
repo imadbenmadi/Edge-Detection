@@ -17,7 +17,6 @@ Example:
 """
 
 import os
-import glob
 import argparse
 from pathlib import Path
 from PIL import Image
@@ -99,9 +98,9 @@ def thicken_edges(image, thickness_px):
     Returns:
         numpy.ndarray: Thickened edge map
     """
-    # Create an elliptical kernel for natural-looking edge thickening
-    # When thickness_px creates a square size, this produces a circular shape
-    # Better for edge detection tasks than rectangular kernels
+    # Create an elliptical structuring element for natural-looking edge thickening
+    # MORPH_ELLIPSE with equal width and height produces a circular kernel
+    # which provides uniform dilation in all directions
     kernel = cv2.getStructuringElement(
         cv2.MORPH_ELLIPSE, 
         (thickness_px, thickness_px)

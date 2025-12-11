@@ -172,8 +172,8 @@ OUTPUT_GT_DIR = "data/test/edges_thickened"
 
 ## Output Format
 
-- All output images are saved as **PNG** files for lossless quality
-- Original filename base is preserved (extension changed to .png for consistency)
+- All output images are saved as **PNG** files for lossless quality (all input formats converted to PNG)
+- Original filename base is preserved (all output files use .png extension)
 - Edge maps remain grayscale (single channel)
 - Pixel values: 0-255 (0 = background, 255 = edge)
 
