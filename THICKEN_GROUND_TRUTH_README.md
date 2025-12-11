@@ -16,17 +16,15 @@ The `thicken_ground_truth.py` script processes ground truth edge detection image
 
 ## Requirements
 
-The script requires the following Python packages (already in `requirements.txt`):
+The script requires the following Python packages (all in `requirements.txt`):
 - Pillow
 - numpy
 - opencv-python
-
-Additional dependency:
-- tqdm (for progress bar)
+- tqdm
 
 Install dependencies:
 ```bash
-pip install Pillow numpy opencv-python tqdm
+pip install -r requirements.txt
 ```
 
 ## Configuration
@@ -46,7 +44,28 @@ EDGE_THICKNESS_PX = 5
 
 ## Usage
 
+### Command-Line Arguments
+
+The script supports command-line arguments for easy configuration:
+
+```bash
+python thicken_ground_truth.py [--input INPUT_DIR] [--output OUTPUT_DIR] [--thickness THICKNESS]
+```
+
+**Arguments:**
+- `--input` or `-i`: Input directory containing ground truth images (default: `data/ground_truth/original`)
+- `--output` or `-o`: Output directory for thickened images (default: `data/ground_truth/thickened`)
+- `--thickness` or `-t`: Edge thickness in pixels (default: `5`)
+
 ### Basic Usage
+
+**Method 1: Using command-line arguments (recommended)**
+
+```bash
+python thicken_ground_truth.py --input data/gt/original --output data/gt/thickened --thickness 5
+```
+
+**Method 2: Editing configuration variables**
 
 1. Update the `INPUT_GT_DIR` variable to point to your ground truth images
 2. Update the `OUTPUT_GT_DIR` variable to specify where to save thickened images
@@ -59,9 +78,9 @@ python thicken_ground_truth.py
 
 ### Example
 
+Using command-line arguments:
 ```bash
-# Default configuration
-python thicken_ground_truth.py
+python thicken_ground_truth.py --input data/gt --output data/gt_thick --thickness 5
 ```
 
 Output:
@@ -154,7 +173,7 @@ OUTPUT_GT_DIR = "data/test/edges_thickened"
 ## Output Format
 
 - All output images are saved as **PNG** files for lossless quality
-- Original filenames are preserved (with .png extension)
+- Original filename base is preserved (extension changed to .png for consistency)
 - Edge maps remain grayscale (single channel)
 - Pixel values: 0-255 (0 = background, 255 = edge)
 

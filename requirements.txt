@@ -2,3 +2,4 @@ Flask==2.3.3
 Pillow==10.4.0
 numpy==1.26.4
 opencv-python==4.10.0.84
+tqdm

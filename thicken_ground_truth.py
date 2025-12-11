@@ -8,10 +8,17 @@ This script processes ground truth edge detection images by:
 
 The thickened edges can improve training results by making ground truth
 annotations more consistent and easier for the model to learn.
+
+Usage:
+    python thicken_ground_truth.py [--input INPUT_DIR] [--output OUTPUT_DIR] [--thickness THICKNESS]
+    
+Example:
+    python thicken_ground_truth.py --input data/gt/original --output data/gt/thickened --thickness 5
 """
 
 import os
 import glob
+import argparse
 from pathlib import Path
 from PIL import Image
 import numpy as np
@@ -64,7 +71,10 @@ def get_image_files(input_dir, extensions):
     input_path = Path(input_dir)
     
     if not input_path.exists():
-        raise ValueError(f"Input directory does not exist: {input_path.absolute()}")
+        raise ValueError(
+            f"Input directory does not exist: {input_path.absolute()}\n"
+            f"Please check the INPUT_GT_DIR configuration or create the directory."
+        )
     
     image_files = []
     for ext in extensions:
@@ -160,26 +170,56 @@ def main():
     """
     Main function to process all ground truth images.
     """
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(
+        description='Thicken edges in ground truth images using morphological dilation.'
+    )
+    parser.add_argument(
+        '--input', '-i',
+        type=str,
+        default=INPUT_GT_DIR,
+        help=f'Input directory containing ground truth images (default: {INPUT_GT_DIR})'
+    )
+    parser.add_argument(
+        '--output', '-o',
+        type=str,
+        default=OUTPUT_GT_DIR,
+        help=f'Output directory for thickened images (default: {OUTPUT_GT_DIR})'
+    )
+    parser.add_argument(
+        '--thickness', '-t',
+        type=int,
+        default=EDGE_THICKNESS_PX,
+        help=f'Edge thickness in pixels (default: {EDGE_THICKNESS_PX})'
+    )
+    
+    args = parser.parse_args()
+    
+    # Use command-line arguments or defaults
+    input_dir = args.input
+    output_dir = args.output
+    thickness = args.thickness
+    
     print("="*60)
     print("GROUND TRUTH EDGE THICKENING SCRIPT")
     print("="*60)
-    print(f"Input directory:   {Path(INPUT_GT_DIR).absolute()}")
-    print(f"Output directory:  {Path(OUTPUT_GT_DIR).absolute()}")
-    print(f"Edge thickness:    {EDGE_THICKNESS_PX}px")
+    print(f"Input directory:   {Path(input_dir).absolute()}")
+    print(f"Output directory:  {Path(output_dir).absolute()}")
+    print(f"Edge thickness:    {thickness}px")
     print("="*60)
     
     # Create output directory
-    create_output_dir(OUTPUT_GT_DIR)
+    create_output_dir(output_dir)
     
     # Get all image files from input directory
     try:
-        image_files = get_image_files(INPUT_GT_DIR, SUPPORTED_EXTENSIONS)
+        image_files = get_image_files(input_dir, SUPPORTED_EXTENSIONS)
     except ValueError as e:
         print(f"Error: {e}")
         return
     
     if not image_files:
-        print(f"Warning: No image files found in {INPUT_GT_DIR}")
+        print(f"Warning: No image files found in {input_dir}")
         print(f"Supported extensions: {', '.join(SUPPORTED_EXTENSIONS)}")
         return
     
@@ -190,10 +230,10 @@ def main():
     failed = 0
     
     for img_path in tqdm(image_files, desc="Processing images"):
-        # Preserve the original filename
-        output_path = Path(OUTPUT_GT_DIR) / img_path.name
+        # Preserve the original filename base (extension will be .png)
+        output_path = Path(output_dir) / img_path.name
         
-        if process_image(img_path, output_path, EDGE_THICKNESS_PX):
+        if process_image(img_path, output_path, thickness):
             successful += 1
         else:
             failed += 1
@@ -203,7 +243,7 @@ def main():
     
     if successful > 0:
         print(f"\n✓ Processing complete! Thickened images saved to:")
-        print(f"  {Path(OUTPUT_GT_DIR).absolute()}")
+        print(f"  {Path(output_dir).absolute()}")
     else:
         print("\n✗ No images were successfully processed.")
 
