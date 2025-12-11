@@ -1,7 +1,8 @@
 """
-Create a small subset of the HED dataset with 200 images and their corresponding edges.
-This script samples from the processed_HED_v2 dataset and creates HED_Small folder.
-Distributes 200 images across train (140), val (30), and test (30) splits.
+Create a tiny subset of the HED dataset with 50 images and their corresponding edges.
+This script samples from the processed_HED_v2 dataset and creates HED_Tiny folder.
+Distributes 50 images across train (35), val (8), and test (7) splits.
+All images are resized to GLOBAL_SIZE (512, 512) with proper aspect ratio preservation.
 """
 
 import os
@@ -9,24 +10,83 @@ import shutil
 import random
 from pathlib import Path
 from tqdm import tqdm
+from PIL import Image, ImageOps
+import numpy as np
+import cv2
 
 # Configuration
 BASE_DIR = Path(r"E:\Edge Detection\datasets")
 SOURCE_DIR = BASE_DIR / "processed_HED_v2"
-OUTPUT_DIR = BASE_DIR / "HED_Small"
-SAMPLE_SIZE = 200
+OUTPUT_DIR = BASE_DIR / "HED_Tiny"
+SAMPLE_SIZE = 50
+
+# Global image size (width, height) - must match training configuration
+GLOBAL_SIZE = (512, 512)
 
 # Distribution ratio: train / val / test
 SPLIT_DISTRIBUTION = {
-    'train': 140,  # 70%
-    'val': 30,     # 15%
-    'test': 30     # 15%
+    'train': 35,  # 70%
+    'val': 8,     # 16%
+    'test': 7     # 14%
 }
+
+def resize_image_v2(img, size, is_edge_map=False):
+    """
+    Research-grade, aspect-ratio preserving letterbox resize.
+    - Preserves geometry (no distortion)
+    - Uses interpolation based on scaling direction
+    - Protects edge-label integrity
+    - Produces pixel-aligned RGB + edge maps
+    - Guaranteed output size
+    """
+    target_w, target_h = size
+    w, h = img.size
+
+    # Compute scale while preserving aspect ratio
+    scale = min(target_w / w, target_h / h)
+    new_w = max(1, int(round(w * scale)))
+    new_h = max(1, int(round(h * scale)))
+
+    if is_edge_map:
+        # Convert to float array in [0,1]
+        arr = np.array(img).astype(np.float32)
+        if arr.max() > 1.0:
+            arr = arr / 255.0
+
+        # Choose interpolation based on scaling direction
+        interp = cv2.INTER_NEAREST if scale >= 1.0 else cv2.INTER_LINEAR
+        arr_resized = cv2.resize(arr, (new_w, new_h), interpolation=interp)
+
+        # Pad to target size with zeros
+        pad_w = target_w - new_w
+        pad_h = target_h - new_h
+        pad_left = pad_w // 2
+        pad_right = pad_w - pad_left
+        pad_top = pad_h // 2
+        pad_bottom = pad_h - pad_top
+        arr_padded = np.pad(
+            arr_resized,
+            ((pad_top, pad_bottom), (pad_left, pad_right)),
+            mode='constant',
+            constant_values=0.0,
+        )
+
+        out = (np.clip(arr_padded, 0.0, 1.0) * 255.0).astype(np.uint8)
+        return Image.fromarray(out, mode='L')
+    else:
+        # High-quality downscale for RGB
+        img_resized = img.resize((new_w, new_h), Image.LANCZOS)
+        # Pad with black to reach target size
+        pad_w = target_w - new_w
+        pad_h = target_h - new_h
+        pad = (pad_w // 2, pad_h // 2, pad_w - pad_w // 2, pad_h - pad_h // 2)
+        img_padded = ImageOps.expand(img_resized, border=pad, fill=(0, 0, 0))
+        return img_padded
 
 def create_small_dataset():
     """
-    Create a small dataset by sampling 200 images from processed_HED_v2.
-    Properly distributes across train/val/test splits.
+    Create a tiny dataset by sampling 50 images from processed_HED_v2.
+    Properly distributes across train/val/test splits and resizes all images to GLOBAL_SIZE.
     """
     
     # Create output directory structure
@@ -85,20 +145,26 @@ def create_small_dataset():
             output_img_path = OUTPUT_DIR / split_name / 'images' / img_name
             output_edge_path = OUTPUT_DIR / split_name / 'edges' / img_name
             
-            # Copy image
+            # Process and resize image
             try:
-                shutil.copy2(img_path, output_img_path)
-                copy_count += 1
+                with Image.open(img_path) as img:
+                    # Resize image to global size
+                    img_resized = resize_image_v2(img, GLOBAL_SIZE, is_edge_map=False)
+                    img_resized.save(output_img_path, format='JPEG', quality=95)
+                    copy_count += 1
             except Exception as e:
-                print(f"Error copying image {img_name}: {e}")
+                print(f"Error processing image {img_name}: {e}")
                 continue
             
-            # Copy corresponding edge map
+            # Process and resize corresponding edge map
             if edge_path.exists():
                 try:
-                    shutil.copy2(edge_path, output_edge_path)
+                    with Image.open(edge_path) as edge:
+                        # Resize edge map to global size
+                        edge_resized = resize_image_v2(edge, GLOBAL_SIZE, is_edge_map=True)
+                        edge_resized.save(output_edge_path, format='PNG')
                 except Exception as e:
-                    print(f"Error copying edge map {img_name}: {e}")
+                    print(f"Error processing edge map {img_name}: {e}")
                     missing_count += 1
             else:
                 print(f"Warning: Edge map not found for {img_name}")
@@ -110,11 +176,12 @@ def create_small_dataset():
     
     # Print summary
     print("\n" + "="*60)
-    print("Dataset Creation Summary")
+    print("HED_Tiny Dataset Creation Summary")
     print("="*60)
-    print(f"Successfully copied: {total_copied} image pairs")
+    print(f"Successfully processed: {total_copied} image pairs")
     print(f"Missing edge maps: {total_missing}")
     print(f"Output directory: {OUTPUT_DIR}")
+    print(f"Global image size: {GLOBAL_SIZE[0]}x{GLOBAL_SIZE[1]}")
     print(f"\nSplit distribution:")
     print(f"  Train: {SPLIT_DISTRIBUTION['train']} images")
     print(f"  Val:   {SPLIT_DISTRIBUTION['val']} images")
@@ -124,10 +191,11 @@ def create_small_dataset():
 
 
 if __name__ == "__main__":
-    print("Creating HED_Small dataset...")
+    print("Creating HED_Tiny dataset...")
     print(f"Source: {SOURCE_DIR}")
     print(f"Output: {OUTPUT_DIR}")
     print(f"Sample size: {SAMPLE_SIZE} images")
+    print(f"Global size: {GLOBAL_SIZE}")
     print(f"Distribution: train={SPLIT_DISTRIBUTION['train']}, val={SPLIT_DISTRIBUTION['val']}, test={SPLIT_DISTRIBUTION['test']}")
     print()
     
