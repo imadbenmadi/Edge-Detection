@@ -17,7 +17,7 @@ import cv2
 # Configuration
 BASE_DIR = Path(r"E:\Edge Detection\datasets")
 SOURCE_DIR = BASE_DIR / "processed_HED_v2"
-OUTPUT_DIR = BASE_DIR / "HED_Tiny"
+OUTPUT_DIR = BASE_DIR / "HED_Small"
 SAMPLE_SIZE = 50
 
 # Global image size (width, height) - must match training configuration
@@ -83,11 +83,26 @@ def resize_image_v2(img, size, is_edge_map=False):
         img_padded = ImageOps.expand(img_resized, border=pad, fill=(0, 0, 0))
         return img_padded
 
+def cleanup_output_dir():
+    """
+    Clean up the output directory by removing all existing files.
+    This ensures we start with a fresh dataset.
+    """
+    if OUTPUT_DIR.exists():
+        print(f"Cleaning up existing directory: {OUTPUT_DIR}")
+        shutil.rmtree(OUTPUT_DIR)
+        print("✓ Cleanup complete")
+    else:
+        print(f"Output directory doesn't exist yet: {OUTPUT_DIR}")
+
 def create_small_dataset():
     """
     Create a tiny dataset by sampling 50 images from processed_HED_v2.
     Properly distributes across train/val/test splits and resizes all images to GLOBAL_SIZE.
     """
+    
+    # Clean up any existing output directory first
+    cleanup_output_dir()
     
     # Create output directory structure
     for split in ['train', 'val', 'test']:

@@ -94,6 +94,19 @@ def resize_image_v2(img, size, is_edge_map=False):
         return img_padded
 
 
+def cleanup_output_dir():
+    """
+    Clean up the output directory by removing all existing files.
+    This ensures we start with a fresh dataset.
+    """
+    if OUTPUT_DIR.exists():
+        print(f"Cleaning up existing directory: {OUTPUT_DIR}")
+        shutil.rmtree(OUTPUT_DIR)
+        print("✓ Cleanup complete")
+    else:
+        print(f"Output directory doesn't exist yet: {OUTPUT_DIR}")
+
+
 def create_output_dirs():
     """Create the output directory structure."""
     for split in ['train', 'val', 'test']:
@@ -202,6 +215,9 @@ def process_dataset():
     print("\n" + "="*70)
     print("CREATING THICK EDGES DATASET (HED_Thick)")
     print("="*70)
+    
+    # Clean up any existing output directory first
+    cleanup_output_dir()
     
     create_output_dirs()
     
