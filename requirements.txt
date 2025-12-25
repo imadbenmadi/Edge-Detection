@@ -5,3 +5,4 @@ opencv-python==4.10.0.84
 tqdm==4.66.3
 scikit-learn==1.5.2
 scipy==1.14.1
+boto3>=1.28.0
