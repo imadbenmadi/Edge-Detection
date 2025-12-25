@@ -125,19 +125,19 @@ Print this or reference while running the study.
 ### Ranking Interpretation
 
 -   [ ] Top variant info:
-    -   Name: ********\_\_\_********
+    -   Name: **\*\*\*\***\_\_\_**\*\*\*\***
     -   ODS: **\_** OIS: **\_** AP: **\_**
-    -   Key differences from baseline: ********\_\_\_********
+    -   Key differences from baseline: **\*\*\*\***\_\_\_**\*\*\*\***
 -   [ ] Biggest ablation hit:
-    -   Component removed: ********\_\_\_********
+    -   Component removed: **\*\*\*\***\_\_\_**\*\*\*\***
     -   ODS drop: **\_** (should be 0.02–0.06)
 -   [ ] Most redundant component:
-    -   Component removed: ********\_\_\_********
+    -   Component removed: **\*\*\*\***\_\_\_**\*\*\*\***
     -   ODS drop: **\_** (should be <0.005)
 
 ---
 
-## 🏆 VALIDATE WINNERS (1-2 hrs per variant)
+## VALIDATE WINNERS (1-2 hrs per variant)
 
 After identifying top 3 variants:
 

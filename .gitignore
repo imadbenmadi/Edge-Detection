@@ -6,3 +6,4 @@ uploads
 __pycache__
 *.pyc
 *.pyo
+ablation_results

@@ -99,7 +99,7 @@ Above + validate top 3 winners with 20 epochs each (~2 hrs)
 ## 🎓 Example Findings You Might Discover
 
 ```
-🏆 BEST VARIANT
+ BEST VARIANT
 Name: elc_learnable_deconv
 ODS: 0.5234 (+0.0034 vs baseline)
 OIS: 0.5421
@@ -260,7 +260,7 @@ The notebook includes:
 
 ---
 
-## 🏆 What You Can Publish
+## What You Can Publish
 
 After this study, you can publish:
 

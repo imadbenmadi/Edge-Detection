@@ -181,7 +181,7 @@ After running, you might discover:
 **Example Output:**
 
 ```
-🏆 BEST VARIANT: elc_learnable_deconv
+ BEST VARIANT: elc_learnable_deconv
    ODS: 0.5234, OIS: 0.5421, AP: 0.4956
 
 ⚠️ MOST CRITICAL COMPONENTS:
