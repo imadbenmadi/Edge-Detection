@@ -7,3 +7,5 @@ __pycache__
 *.pyc
 *.pyo
 ablation_results
+runs
+backup
