@@ -1,6 +1,20 @@
+datasets - others
 datasets
+BIPED
+BIPEDv2
+CBSD68
+HED_Thick
+kaggle
+HED-BSDS
+processed
+processed - Copy
+RCF
+processed_HED_v2 - Copy
+processed_HED_v2
+processed_HED
 data
 generated_maps
+RCF_small
 results
 uploads
 __pycache__
@@ -9,3 +23,16 @@ __pycache__
 ablation_results
 runs
 backup
+.ipynb_checkpoints
+
+# Model files and checkpoints (large files)
+models/
+*.pth
+*.pt
+*.pytorch
+checkpoints/
+
+# Benchmark outputs
+banchmark/outputs/
+banchmark/checkpoints/
+banchmark/_repos/

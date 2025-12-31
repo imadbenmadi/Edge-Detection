@@ -6,3 +6,13 @@ tqdm==4.66.3
 scikit-learn==1.5.2
 scipy==1.14.1
 boto3>=1.28.0
+
+# Benchmark notebook deps
+matplotlib>=3.7
+pandas>=2.0
+scikit-image>=0.22
+gdown>=5.2
+
+# PyTorch (install wheel appropriate for your CPU/CUDA setup)
+torch
+torchvision
