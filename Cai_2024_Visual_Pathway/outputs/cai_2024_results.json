@@ -1,0 +1,21 @@
+{
+  "model": "Cai et al. 2024 - Visual Pathway Network",
+  "paper": "Neural Processing Letters, 2024",
+  "features": {
+    "double_receptive_fields": true,
+    "double_stream_fusion": true,
+    "adaptive_response": true,
+    "visual_hierarchy": "LGN \u2192 V1 \u2192 V2 \u2192 V4"
+  },
+  "architecture": {
+    "parameters": 2609469,
+    "input_size": "320x320",
+    "output_type": "edge_probability_map"
+  },
+  "metrics": {
+    "ODS": 0.18725140569985216,
+    "ODS_threshold": 0.546551724137931,
+    "OIS": 0.1652486967353967,
+    "AP": 0.0995021350444436
+  }
+}
