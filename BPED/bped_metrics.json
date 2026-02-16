@@ -1,0 +1,12 @@
+{
+  "model": "BPED",
+  "dataset": "..\\datasets\\HED_Small",
+  "num_images": 32,
+  "metrics": {
+    "ODS": 0.0,
+    "ODS_threshold": 0.0,
+    "OIS": 0.0,
+    "AP": 0.0
+  },
+  "parameters": 43737129
+}

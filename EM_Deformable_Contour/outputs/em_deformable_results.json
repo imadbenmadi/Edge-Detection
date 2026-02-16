@@ -1,0 +1,24 @@
+{
+  "model": "EM-driven Deformable Contour",
+  "method": "Bio-inspired Active Contours",
+  "features": {
+    "deformable_model": "Active Contours (Snakes)",
+    "em_algorithm": "Adaptive parameter optimization",
+    "bio_inspired_energy": "V1-like Gabor responses",
+    "internal_energy": "Elasticity + Curvature",
+    "external_energy": "Edge attraction"
+  },
+  "parameters": {
+    "alpha": 0.01,
+    "beta": 0.1,
+    "gamma": 0.3,
+    "n_points": 100,
+    "n_orientations": 8
+  },
+  "metrics": {
+    "ODS": 0.0,
+    "ODS_threshold": 0.0,
+    "OIS": 0.0,
+    "AP": 0.010522842407226562
+  }
+}
