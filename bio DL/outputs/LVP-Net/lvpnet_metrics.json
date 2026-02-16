@@ -1,0 +1,8 @@
+{
+  "model": "LVP-Net",
+  "paper": "Hierarchical visual pathway simulation",
+  "bio_inspired": true,
+  "bio_mechanism": "Feedback refinement in visual hierarchy",
+  "improvement_area": "Edge continuity and suppression of noise",
+  "metrics": {
+    "ODS": 

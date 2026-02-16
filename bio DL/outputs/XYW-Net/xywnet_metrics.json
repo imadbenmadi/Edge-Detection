@@ -1,0 +1,15 @@
+{
+  "model": "XYW-Net",
+  "paper": "Parallel pathways with X, Y, and W cells",
+  "bio_inspired": true,
+  "bio": "Retinal X, Y, W cell pathways",
+  "improvement": "Precision and computational efficiency",
+  "metrics": {
+    "ODS": 0.0180708896368742,
+    "ODS_thresh": 0.39137931034482754,
+    "OIS": 0.01934686303138733,
+    "AP": 0.0068115716162668845
+  },
+  "num_test_images": 20,
+  "device": "cuda"
+}
